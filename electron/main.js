@@ -1,0 +1,200 @@
+const { app, BrowserWindow, ipcMain, screen } = require('electron');
+const path = require('path');
+const http = require('http');
+const { spawn } = require('child_process');
+
+let hubWindow = null;
+const noteWindows = new Map(); // noteId -> BrowserWindow
+let nextProcess = null;
+
+const DEV_URL = 'http://localhost:3000';
+
+function ensureServerRunning(callback) {
+  const req = http.get(DEV_URL, () => {
+    callback();
+  });
+
+  req.on('error', () => {
+    // If Next.js is not already running on port 3000, start it automatically
+    console.log('Starting local Next.js background server on port 3000...');
+    nextProcess = spawn('npx', ['next', 'dev', '-p', '3000'], {
+      cwd: path.join(__dirname, '..'),
+      shell: true,
+      stdio: 'ignore',
+    });
+
+    // Check every 500ms until server responds
+    const checkInterval = setInterval(() => {
+      const probe = http.get(DEV_URL, () => {
+        clearInterval(checkInterval);
+        callback();
+      });
+      probe.on('error', () => {});
+    }, 500);
+  });
+}
+
+function createHubWindow() {
+  if (hubWindow && !hubWindow.isDestroyed()) {
+    hubWindow.focus();
+    return;
+  }
+
+  hubWindow = new BrowserWindow({
+    width: 340,
+    height: 580,
+    minWidth: 280,
+    minHeight: 360,
+    title: 'Sticky Notes',
+    autoHideMenuBar: true,
+    backgroundColor: '#ffffff',
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      nodeIntegration: false,
+      contextIsolation: true,
+    },
+  });
+
+  hubWindow.loadURL(`${DEV_URL}/hub`);
+
+  hubWindow.webContents.on('did-fail-load', () => {
+    setTimeout(() => {
+      if (hubWindow && !hubWindow.isDestroyed()) {
+        hubWindow.loadURL(`${DEV_URL}/hub`);
+      }
+    }, 1000);
+  });
+
+  hubWindow.on('closed', () => {
+    hubWindow = null;
+    if (noteWindows.size === 0) {
+      app.quit();
+    }
+  });
+}
+
+function openNoteWindow(noteId, options = {}) {
+  if (noteWindows.has(noteId)) {
+    const existing = noteWindows.get(noteId);
+    if (!existing.isDestroyed()) {
+      existing.show();
+      existing.focus();
+      return;
+    }
+    noteWindows.delete(noteId);
+  }
+
+  const display = screen.getPrimaryDisplay();
+  const baseOffset = (noteWindows.size % 6) * 35;
+  const defaultX = Math.round(display.workAreaSize.width / 2 - 160 + baseOffset);
+  const defaultY = Math.round(display.workAreaSize.height / 2 - 170 + baseOffset);
+
+  const noteWin = new BrowserWindow({
+    width: options.width || 320,
+    height: options.height || 340,
+    x: options.x || defaultX,
+    y: options.y || defaultY,
+    minWidth: 240,
+    minHeight: 200,
+    title: 'Sticky Note',
+    autoHideMenuBar: true,
+    alwaysOnTop: !!options.isPinned,
+    backgroundColor: '#fff9c4',
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      nodeIntegration: false,
+      contextIsolation: true,
+    },
+  });
+
+  noteWindows.set(noteId, noteWin);
+
+  noteWin.loadURL(`${DEV_URL}/note?id=${encodeURIComponent(noteId)}`);
+
+  noteWin.webContents.on('did-fail-load', () => {
+    setTimeout(() => {
+      if (!noteWin.isDestroyed()) {
+        noteWin.loadURL(`${DEV_URL}/note?id=${encodeURIComponent(noteId)}`);
+      }
+    }, 1000);
+  });
+
+  noteWin.on('closed', () => {
+    noteWindows.delete(noteId);
+    broadcastChange();
+    if (noteWindows.size === 0 && (!hubWindow || hubWindow.isDestroyed())) {
+      app.quit();
+    }
+  });
+}
+
+function broadcastChange() {
+  if (hubWindow && !hubWindow.isDestroyed()) {
+    hubWindow.webContents.send('notes-updated');
+  }
+  for (const win of noteWindows.values()) {
+    if (!win.isDestroyed()) {
+      win.webContents.send('notes-updated');
+    }
+  }
+}
+
+// IPC Handlers
+ipcMain.on('open-note-window', (event, noteId) => {
+  openNoteWindow(noteId);
+});
+
+ipcMain.on('close-note-window', (event, noteId) => {
+  if (noteWindows.has(noteId)) {
+    const win = noteWindows.get(noteId);
+    if (!win.isDestroyed()) {
+      win.close();
+    }
+    noteWindows.delete(noteId);
+  }
+});
+
+ipcMain.on('set-always-on-top', (event, { id, isPinned }) => {
+  if (noteWindows.has(id)) {
+    const win = noteWindows.get(id);
+    if (!win.isDestroyed()) {
+      win.setAlwaysOnTop(isPinned);
+    }
+  }
+});
+
+ipcMain.on('broadcast-note-change', () => {
+  broadcastChange();
+});
+
+ipcMain.on('create-new-note', () => {
+  if (hubWindow && !hubWindow.isDestroyed()) {
+    hubWindow.webContents.send('trigger-new-note');
+  }
+});
+
+app.whenReady().then(() => {
+  ensureServerRunning(() => {
+    createHubWindow();
+  });
+
+  app.on('activate', () => {
+    if (!hubWindow || hubWindow.isDestroyed()) {
+      createHubWindow();
+    }
+  });
+});
+
+app.on('will-quit', () => {
+  if (nextProcess) {
+    try {
+      nextProcess.kill();
+    } catch {}
+  }
+});
+
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') {
+    app.quit();
+  }
+});

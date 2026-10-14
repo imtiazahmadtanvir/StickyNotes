@@ -1,0 +1,52 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Note {
+  id          String    @id
+  userId      String    @default("default-user")
+  title       String    @default("")
+  content     String    @default("")
+  color       String    @default("yellow")
+  isPinned    Boolean   @default(false)
+  isArchived  Boolean   @default(false)
+  positionX   Float     @default(100)
+  positionY   Float     @default(100)
+  width       Float     @default(320)
+  height      Float     @default(360)
+  revision    Int       @default(1)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  @@index([userId, updatedAt])
+}
+
+model SyncLog {
+  id          String    @id @default(uuid())
+  userId      String    @default("default-user")
+  deviceId    String    @default("windows-desktop")
+  action      String    // UPSERT, DELETE
+  noteId      String
+  revision    Int       @default(1)
+  createdAt   DateTime  @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  name         String?
+  passwordHash String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([email])
+}
+
