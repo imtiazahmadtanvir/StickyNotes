@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
@@ -15,6 +16,8 @@ import {
   Trash2,
   ChevronDown,
   Type,
+  Check,
+  Menu,
 } from 'lucide-react';
 import { Note, NOTE_COLORS, NoteColorId } from '@/types';
 
@@ -26,6 +29,7 @@ interface NoteWindowProps {
   onClose: (id: string) => void;
   onDelete: (id: string) => void;
   onNewNote: () => void;
+  onOpenNotesList?: () => void;
 }
 
 const PRESET_FONT_SIZES = [
@@ -45,6 +49,7 @@ export const NoteWindow: React.FC<NoteWindowProps> = ({
   onClose,
   onDelete,
   onNewNote,
+  onOpenNotesList,
 }) => {
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showSizeDropdown, setShowSizeDropdown] = useState(false);
@@ -61,6 +66,29 @@ export const NoteWindow: React.FC<NoteWindowProps> = ({
 
   const windowRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close menu on click outside or Escape
+  useEffect(() => {
+    if (!showColorPicker) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (menuRef.current && !menuRef.current.contains(target) && !target.closest('.note-btn')) {
+        setShowColorPicker(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowColorPicker(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showColorPicker]);
   const dragStartRef = useRef<{ x: number; y: number; posX: number; posY: number }>({
     x: 0,
     y: 0,
@@ -362,6 +390,17 @@ export const NoteWindow: React.FC<NoteWindowProps> = ({
     onUpdate({ ...note, color: colorId });
   };
 
+  const handleOpenNotesList = () => {
+    setShowColorPicker(false);
+    if (onOpenNotesList) {
+      onOpenNotesList();
+    } else if (window.electronAPI?.openHubWindow) {
+      window.electronAPI.openHubWindow();
+    } else if (typeof window !== 'undefined') {
+      window.open('/hub', 'stickynotes_hub', 'width=360,height=580');
+    }
+  };
+
   const togglePin = () => {
     const nextPin = !isPinned;
     setIsPinned(nextPin);
@@ -381,6 +420,7 @@ export const NoteWindow: React.FC<NoteWindowProps> = ({
         height: `${note.height}px`,
         zIndex: isPinned ? 900 : note.zIndex,
         backgroundColor: colorConfig.bgLight,
+        position: 'absolute',
       }}
       onMouseDown={() => onFocus(note.id)}
     >
@@ -414,10 +454,10 @@ export const NoteWindow: React.FC<NoteWindowProps> = ({
             <Pin size={15} />
           </button>
 
-          {/* Color & Options Menu */}
+          {/* Three dots beside X */}
           <button
-            className="note-btn"
-            title="Note Color & Options"
+            className={`note-btn ${showColorPicker ? 'active' : ''}`}
+            title="Menu"
             onClick={(e) => {
               e.stopPropagation();
               setShowColorPicker(!showColorPicker);
@@ -438,43 +478,66 @@ export const NoteWindow: React.FC<NoteWindowProps> = ({
             <X size={16} />
           </button>
         </div>
+      </div>
 
-        {/* Color Palette Dropdown */}
-        {showColorPicker && (
-          <div
-            className="color-picker-dropdown"
-            onMouseDown={(e) => e.stopPropagation()}
-          >
-            {(Object.keys(NOTE_COLORS) as NoteColorId[]).map((cid) => (
-              <div
-                key={cid}
-                className={`color-swatch ${note.color === cid ? 'selected' : ''}`}
-                style={{ backgroundColor: NOTE_COLORS[cid].accent }}
-                title={NOTE_COLORS[cid].name}
-                onClick={() => handleColorChange(cid)}
-              />
-            ))}
-            <div
-              style={{
-                width: '1px',
-                height: '24px',
-                background: 'rgba(0,0,0,0.1)',
-                margin: '0 2px',
-              }}
-            />
+      {/* Microsoft Sticky Notes Three-Dots Dropdown Menu (Matching Screenshot 2) */}
+      {showColorPicker && (
+        <div
+          ref={menuRef}
+          className="ms-sticky-menu-dropdown"
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          {/* 7 Solid Color Blocks spanning edge-to-edge */}
+          <div className="ms-palette-bar">
+            {(Object.keys(NOTE_COLORS) as NoteColorId[]).map((cid) => {
+              const isSelected = note.color === cid;
+              const swatchColor = NOTE_COLORS[cid].accent;
+              return (
+                <button
+                  key={cid}
+                  type="button"
+                  className={`ms-palette-block ${isSelected ? 'selected' : ''}`}
+                  style={{ backgroundColor: swatchColor }}
+                  title={NOTE_COLORS[cid].name}
+                  onClick={() => handleColorChange(cid)}
+                >
+                  {isSelected && (
+                    <Check
+                      size={18}
+                      strokeWidth={2.6}
+                      color={cid === 'charcoal' ? '#ffffff' : '#111111'}
+                    />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Menu Options (Notes list & Delete note) */}
+          <div className="ms-menu-options">
             <button
-              className="note-btn close-btn"
-              title="Delete Note"
+              type="button"
+              className="ms-menu-item"
+              onClick={handleOpenNotesList}
+            >
+              <Menu size={18} strokeWidth={2} className="ms-menu-item-icon" />
+              <span>Notes list</span>
+            </button>
+
+            <button
+              type="button"
+              className="ms-menu-item delete"
               onClick={() => {
                 setShowColorPicker(false);
                 onDelete(note.id);
               }}
             >
-              <Trash2 size={15} />
+              <Trash2 size={18} strokeWidth={2} className="ms-menu-item-icon delete" />
+              <span>Delete note</span>
             </button>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Note Body */}
       <div className="note-body">

@@ -24,6 +24,7 @@ declare global {
       isElectron: boolean;
       openNoteWindow: (id: string) => void;
       closeNoteWindow: (id: string) => void;
+      openHubWindow?: () => void;
       setAlwaysOnTop: (id: string, isPinned: boolean) => void;
       createNewNote: () => void;
       broadcastNoteChange: () => void;

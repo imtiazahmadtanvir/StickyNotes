@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   closeNoteWindow: (id) => ipcRenderer.send('close-note-window', id),
   setAlwaysOnTop: (id, isPinned) => ipcRenderer.send('set-always-on-top', { id, isPinned }),
   createNewNote: () => ipcRenderer.send('create-new-note'),
+  openHubWindow: () => ipcRenderer.send('open-hub-window'),
   broadcastNoteChange: () => ipcRenderer.send('broadcast-note-change'),
   onNotesUpdated: (callback) => {
     const handler = () => callback();

@@ -173,6 +173,10 @@ ipcMain.on('create-new-note', () => {
   }
 });
 
+ipcMain.on('open-hub-window', () => {
+  createHubWindow();
+});
+
 app.whenReady().then(() => {
   ensureServerRunning(() => {
     createHubWindow();

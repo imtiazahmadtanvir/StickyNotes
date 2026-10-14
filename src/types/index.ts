@@ -19,7 +19,7 @@ export const NOTE_COLORS: Record<NoteColorId, NoteColorConfig> = {
     headerLight: '#fff59d',
     bgDark: '#423d24',
     headerDark: '#524b2b',
-    accent: '#fbc02d',
+    accent: '#fff275',
     border: '#f0e68c',
   },
   green: {
@@ -29,7 +29,7 @@ export const NOTE_COLORS: Record<NoteColorId, NoteColorConfig> = {
     headerLight: '#c5e1a5',
     bgDark: '#233d28',
     headerDark: '#2e4d34',
-    accent: '#7cb342',
+    accent: '#a1ef9b',
     border: '#b5d792',
   },
   pink: {
@@ -39,7 +39,7 @@ export const NOTE_COLORS: Record<NoteColorId, NoteColorConfig> = {
     headerLight: '#f48fb1',
     bgDark: '#4a2533',
     headerDark: '#592e3f',
-    accent: '#e91e63',
+    accent: '#fbcfe8',
     border: '#e69ab4',
   },
   purple: {
@@ -49,7 +49,7 @@ export const NOTE_COLORS: Record<NoteColorId, NoteColorConfig> = {
     headerLight: '#ce93d8',
     bgDark: '#382547',
     headerDark: '#473059',
-    accent: '#ab47bc',
+    accent: '#d8b4fe',
     border: '#c28bc9',
   },
   blue: {
@@ -59,7 +59,7 @@ export const NOTE_COLORS: Record<NoteColorId, NoteColorConfig> = {
     headerLight: '#81d4fa',
     bgDark: '#1c3647',
     headerDark: '#24455a',
-    accent: '#29b6f6',
+    accent: '#93c5fd',
     border: '#74c2e8',
   },
   gray: {
@@ -69,7 +69,7 @@ export const NOTE_COLORS: Record<NoteColorId, NoteColorConfig> = {
     headerLight: '#bdbdbd',
     bgDark: '#333333',
     headerDark: '#424242',
-    accent: '#757575',
+    accent: '#e0e0e0',
     border: '#aeaeae',
   },
   charcoal: {
@@ -79,7 +79,7 @@ export const NOTE_COLORS: Record<NoteColorId, NoteColorConfig> = {
     headerLight: '#212529',
     bgDark: '#1e2023',
     headerDark: '#15171a',
-    accent: '#90caf9',
+    accent: '#52525b',
     border: '#3c4148',
   },
 };
@@ -130,3 +130,19 @@ export interface AppSettings {
   supabaseAnonKey?: string;
   userId?: string;
 }
+
+declare global {
+  interface Window {
+    electronAPI?: {
+      isElectron: boolean;
+      openNoteWindow: (id: string) => void;
+      closeNoteWindow: (id: string) => void;
+      openHubWindow?: () => void;
+      setAlwaysOnTop: (id: string, isPinned: boolean) => void;
+      createNewNote: () => void;
+      broadcastNoteChange: () => void;
+      onNotesUpdated: (callback: () => void) => () => void;
+    };
+  }
+}
+

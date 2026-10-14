@@ -300,6 +300,7 @@ html, body {
   flex-direction: column;
   overflow: hidden;
   user-select: none;
+  position: relative;
 }
 
 .ms-note-header {
@@ -726,66 +727,133 @@ html, body {
   background: rgba(255, 255, 255, 0.1);
 }
 
-/* Color Dropdown */
-.ms-color-picker-dropdown {
+/* ==========================================================================
+   AUTHENTIC MICROSOFT STICKY NOTES THREE-DOTS MENU (MATCHING SCREENSHOT 2)
+   ========================================================================== */
+
+.ms-sticky-menu-dropdown {
   position: absolute;
-  top: 38px;
-  right: 28px;
+  top: 0;
+  left: 0;
+  right: 0;
   background: #ffffff;
-  border-radius: 4px;
-  padding: 10px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.22);
+  z-index: 1000;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  z-index: 1000;
+  animation: msMenuSlideDown 0.12s cubic-bezier(0.16, 1, 0.3, 1);
   -webkit-app-region: no-drag;
+  user-select: none;
 }
 
-.ms-color-palette-row {
+[data-theme='dark'] .ms-sticky-menu-dropdown,
+.theme-dark-note .ms-sticky-menu-dropdown {
+  background: #252525;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.6);
+}
+
+@keyframes msMenuSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 7 continuous solid color blocks spanning edge to edge */
+.ms-palette-bar {
+  display: flex;
+  width: 100%;
+  height: 42px;
+}
+
+.ms-palette-block {
+  flex: 1;
+  height: 100%;
+  border: none;
+  padding: 0;
   display: flex;
   align-items: center;
-  gap: 8px;
-}
-
-.ms-color-circle {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
+  justify-content: center;
   cursor: pointer;
-  border: 2px solid transparent;
-  transition: transform 0.15s ease;
+  transition: opacity 120ms ease;
+  position: relative;
+  outline: none;
 }
 
-.ms-color-circle:hover {
-  transform: scale(1.15);
+.ms-palette-block:hover {
+  opacity: 0.88;
 }
 
-.ms-color-circle.selected {
-  border-color: #222222;
+/* Menu options below color bar */
+.ms-menu-options {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 0 6px 0;
+  background: #ffffff;
 }
 
-.ms-dropdown-divider {
-  height: 1px;
-  background: rgba(0, 0, 0, 0.08);
+[data-theme='dark'] .ms-menu-options,
+.theme-dark-note .ms-menu-options {
+  background: #252525;
 }
 
-.ms-delete-note-btn {
+.ms-menu-item {
+  width: 100%;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
-  border-radius: 4px;
+  gap: 16px;
+  padding: 11px 18px;
   border: none;
   background: transparent;
-  color: #d13438;
-  font-size: 13px;
+  color: #111111;
+  font-family: var(--font-fluent);
+  font-size: 14px;
+  font-weight: 400;
+  text-align: left;
   cursor: pointer;
+  transition: background 120ms ease;
+  outline: none;
 }
 
-.ms-delete-note-btn:hover {
-  background: rgba(209, 52, 56, 0.1);
+[data-theme='dark'] .ms-menu-item,
+.theme-dark-note .ms-menu-item {
+  color: #f1f5f9;
+}
+
+.ms-menu-item:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+[data-theme='dark'] .ms-menu-item:hover,
+.theme-dark-note .ms-menu-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.ms-menu-item-icon {
+  color: #222222;
+  flex-shrink: 0;
+}
+
+[data-theme='dark'] .ms-menu-item-icon,
+.theme-dark-note .ms-menu-item-icon {
+  color: #f1f5f9;
+}
+
+/* Delete note menu item in red matching Screenshot 2 */
+.ms-menu-item.delete {
+  color: #e81123;
+}
+
+.ms-menu-item.delete:hover {
+  background: rgba(232, 17, 35, 0.08);
+}
+
+.ms-menu-item-icon.delete {
+  color: #e81123;
 }
 
 /* Modals */
