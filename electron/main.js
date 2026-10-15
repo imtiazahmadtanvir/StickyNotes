@@ -10,12 +10,8 @@ let nextProcess = null;
 const DEV_URL = 'http://localhost:3000';
 
 function ensureServerRunning(callback) {
-  const req = http.get(DEV_URL, () => {
-    callback();
-  });
-
-  req.on('error', () => {
-    // If Next.js is not already running on port 3000, start it automatically
+  function startNext() {
+    if (nextProcess) return;
     console.log('Starting local Next.js background server on port 3000...');
     nextProcess = spawn('npx', ['next', 'dev', '-p', '3000'], {
       cwd: path.join(__dirname, '..'),
@@ -23,14 +19,27 @@ function ensureServerRunning(callback) {
       stdio: 'ignore',
     });
 
-    // Check every 500ms until server responds
     const checkInterval = setInterval(() => {
-      const probe = http.get(DEV_URL, () => {
-        clearInterval(checkInterval);
-        callback();
+      const probe = http.get(DEV_URL, (res) => {
+        if (res.statusCode && res.statusCode < 400) {
+          clearInterval(checkInterval);
+          callback();
+        }
       });
       probe.on('error', () => {});
     }, 500);
+  }
+
+  const req = http.get(DEV_URL, (res) => {
+    if (res.statusCode && res.statusCode < 400) {
+      callback();
+    } else {
+      startNext();
+    }
+  });
+
+  req.on('error', () => {
+    startNext();
   });
 }
 
