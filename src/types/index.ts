@@ -135,7 +135,7 @@ declare global {
   interface Window {
     electronAPI?: {
       isElectron: boolean;
-      openNoteWindow: (id: string) => void;
+      openNoteWindow: (id: string, options?: { width?: number; height?: number; x?: number; y?: number; isPinned?: boolean }) => void;
       closeNoteWindow: (id: string) => void;
       minimizeWindow?: () => void;
       closeWindow?: () => void;
@@ -144,6 +144,7 @@ declare global {
       createNewNote: () => void;
       broadcastNoteChange: () => void;
       onNotesUpdated: (callback: () => void) => () => void;
+      onWindowBoundsUpdated?: (callback: (data: { id: string; width: number; height: number; positionX: number; positionY: number }) => void) => () => void;
     };
   }
 }

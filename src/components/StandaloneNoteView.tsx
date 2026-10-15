@@ -63,18 +63,23 @@ export const StandaloneNoteView: React.FC<StandaloneNoteViewProps> = ({ noteId }
   const menuRef = useRef<HTMLDivElement>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Close menu on click outside or Escape
+  // Close menus on click outside or Escape
+  const sizeDropdownRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (!showColorPicker) return;
+    if (!showColorPicker && !showSizeDropdown) return;
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      if (menuRef.current && !menuRef.current.contains(target) && !target.closest('.ms-header-btn')) {
+      if (showColorPicker && menuRef.current && !menuRef.current.contains(target) && !target.closest('.ms-header-btn')) {
         setShowColorPicker(false);
+      }
+      if (showSizeDropdown && sizeDropdownRef.current && !sizeDropdownRef.current.contains(target)) {
+        setShowSizeDropdown(false);
       }
     };
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setShowColorPicker(false);
+        setShowSizeDropdown(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -83,7 +88,7 @@ export const StandaloneNoteView: React.FC<StandaloneNoteViewProps> = ({ noteId }
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [showColorPicker]);
+  }, [showColorPicker, showSizeDropdown]);
 
   // Load note
   useEffect(() => {
@@ -103,6 +108,57 @@ export const StandaloneNoteView: React.FC<StandaloneNoteViewProps> = ({ noteId }
     return () => {
       window.removeEventListener('stickynotes:updated', handleStorageUpdate);
     };
+  }, [noteId]);
+
+  // Listen for window resize and remember size in localDb
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleResize = () => {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      if (w < 100 || h < 100) return;
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = setTimeout(() => {
+        const cur = localDb.getNoteById(noteId);
+        if (cur && (cur.width !== w || cur.height !== h)) {
+          localDb.saveNote({
+            ...cur,
+            width: w,
+            height: h,
+          });
+        }
+      }, 300);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [noteId]);
+
+  // In Electron: also remember window bounds (position and size)
+  useEffect(() => {
+    if (window.electronAPI?.onWindowBoundsUpdated) {
+      const unsubscribe = window.electronAPI.onWindowBoundsUpdated((data) => {
+        if (data.id === noteId) {
+          const cur = localDb.getNoteById(noteId);
+          if (
+            cur &&
+            (cur.width !== data.width ||
+              cur.height !== data.height ||
+              cur.positionX !== data.positionX ||
+              cur.positionY !== data.positionY)
+          ) {
+            localDb.saveNote({
+              ...cur,
+              width: data.width,
+              height: data.height,
+              positionX: data.positionX,
+              positionY: data.positionY,
+            });
+          }
+        }
+      });
+      return () => unsubscribe();
+    }
   }, [noteId]);
 
   // Sync editor innerHTML on initial load
@@ -359,13 +415,43 @@ export const StandaloneNoteView: React.FC<StandaloneNoteViewProps> = ({ noteId }
         document.execCommand(
           'insertHTML',
           false,
-          `<div style="margin: 8px 0;"><img src="${base64}" style="max-width: 100%; border-radius: 4px; box-shadow: 0 1px 4px rgba(0,0,0,0.15);" /></div><div><br></div>`
+          `<div style="margin: 8px 0; text-align: center;"><img src="${base64}" alt="Note Image" style="max-width: 100%; height: auto; object-fit: contain; border-radius: 4px; display: block; margin: 0 auto; box-shadow: 0 1px 4px rgba(0,0,0,0.15);" /></div><div><br></div>`
         );
         handleContentInput();
       }
     };
     reader.readAsDataURL(file);
     e.target.value = '';
+  };
+
+  // Paste handler: ensure pasted images or text do not distort note shape
+  const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
+    const items = e.clipboardData?.items;
+    if (items) {
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+          e.preventDefault();
+          const file = items[i].getAsFile();
+          if (file) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+              const base64 = event.target?.result as string;
+              if (base64) {
+                if (editorRef.current) editorRef.current.focus();
+                document.execCommand(
+                  'insertHTML',
+                  false,
+                  `<div style="margin: 8px 0; text-align: center;"><img src="${base64}" alt="Note Image" style="max-width: 100%; height: auto; object-fit: contain; border-radius: 4px; display: block; margin: 0 auto; box-shadow: 0 1px 4px rgba(0,0,0,0.15);" /></div><div><br></div>`
+                );
+                handleContentInput();
+              }
+            };
+            reader.readAsDataURL(file);
+          }
+          return;
+        }
+      }
+    }
   };
 
   const handleColorChange = (cid: NoteColorId) => {
@@ -671,6 +757,7 @@ export const StandaloneNoteView: React.FC<StandaloneNoteViewProps> = ({ noteId }
           onSelect={handleSelectionChange}
           onScroll={handleSelectionChange}
           onKeyDown={handleEditorKeyDown}
+          onPaste={handlePaste}
           spellCheck
         />
       </div>
@@ -747,7 +834,7 @@ export const StandaloneNoteView: React.FC<StandaloneNoteViewProps> = ({ noteId }
         </button>
 
         {/* Divider before Font Size */}
-        <div style={{ width: '1px', height: '18px', background: 'rgba(0,0,0,0.1)', margin: '0 4px' }} />
+        <div className="ms-tool-divider" />
 
         {/* Increase Text Size (A⁺) Button */}
         <button
@@ -774,9 +861,9 @@ export const StandaloneNoteView: React.FC<StandaloneNoteViewProps> = ({ noteId }
         </button>
 
         {/* Font Size Presets Dropdown */}
-        <div className="size-dropdown-container">
+        <div className="size-dropdown-container" ref={sizeDropdownRef}>
           <button
-            className="ms-tool-btn font-size-btn"
+            className={`ms-tool-btn font-size-btn ${showSizeDropdown ? 'active' : ''}`}
             title="Font Size Presets"
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => setShowSizeDropdown(!showSizeDropdown)}
@@ -799,7 +886,9 @@ export const StandaloneNoteView: React.FC<StandaloneNoteViewProps> = ({ noteId }
                   onClick={() => applyFontSize(item.size)}
                 >
                   <span>{item.label}</span>
-                  <span style={{ fontSize: `${Math.min(item.size, 18)}px`, opacity: 0.7 }}>Aa</span>
+                  <span style={{ fontSize: `${Math.min(item.size, 16)}px`, opacity: 0.75, fontWeight: 600 }}>
+                    {item.size}px
+                  </span>
                 </button>
               ))}
             </div>

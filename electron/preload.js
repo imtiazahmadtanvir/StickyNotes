@@ -2,7 +2,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
   isElectron: true,
-  openNoteWindow: (id) => ipcRenderer.send('open-note-window', id),
+  openNoteWindow: (id, options) => ipcRenderer.send('open-note-window', id, options),
   closeNoteWindow: (id) => ipcRenderer.send('close-note-window', id),
   minimizeWindow: () => ipcRenderer.send('minimize-window'),
   closeWindow: () => ipcRenderer.send('close-window'),
@@ -14,5 +14,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     const handler = () => callback();
     ipcRenderer.on('notes-updated', handler);
     return () => ipcRenderer.removeListener('notes-updated', handler);
+  },
+  onWindowBoundsUpdated: (callback) => {
+    const handler = (event, data) => callback(data);
+    ipcRenderer.on('note-bounds-changed', handler);
+    return () => ipcRenderer.removeListener('note-bounds-changed', handler);
   },
 });

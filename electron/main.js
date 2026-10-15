@@ -110,13 +110,18 @@ function openNoteWindow(noteId, options = {}) {
   const defaultY = Math.round(display.workAreaSize.height / 2 - 170 + baseOffset);
   const appIconPath = path.join(__dirname, '../public/app-logo.png');
 
+  const width = (options && typeof options.width === 'number' && options.width >= 200) ? Math.round(options.width) : 320;
+  const height = (options && typeof options.height === 'number' && options.height >= 160) ? Math.round(options.height) : 340;
+  const x = (options && typeof options.x === 'number') ? Math.round(options.x) : defaultX;
+  const y = (options && typeof options.y === 'number') ? Math.round(options.y) : defaultY;
+
   const noteWin = new BrowserWindow({
-    width: options.width || 320,
-    height: options.height || 340,
-    x: options.x || defaultX,
-    y: options.y || defaultY,
-    minWidth: 240,
-    minHeight: 200,
+    width,
+    height,
+    x,
+    y,
+    minWidth: 220,
+    minHeight: 180,
     title: 'Sticky Note',
     icon: appIconPath,
     frame: false,
@@ -133,6 +138,39 @@ function openNoteWindow(noteId, options = {}) {
   noteWindows.set(noteId, noteWin);
 
   noteWin.loadURL(`${APP_URL}/note?id=${encodeURIComponent(noteId)}`);
+
+  // Remember window size and position when user resizes or moves
+  let boundsTimer = null;
+  const notifyBounds = () => {
+    if (noteWin.isDestroyed()) return;
+    const b = noteWin.getBounds();
+    noteWin.webContents.send('note-bounds-changed', {
+      id: noteId,
+      width: b.width,
+      height: b.height,
+      positionX: b.x,
+      positionY: b.y,
+    });
+    if (hubWindow && !hubWindow.isDestroyed()) {
+      hubWindow.webContents.send('note-bounds-changed', {
+        id: noteId,
+        width: b.width,
+        height: b.height,
+        positionX: b.x,
+        positionY: b.y,
+      });
+    }
+  };
+
+  noteWin.on('resize', () => {
+    clearTimeout(boundsTimer);
+    boundsTimer = setTimeout(notifyBounds, 200);
+  });
+
+  noteWin.on('moved', () => {
+    clearTimeout(boundsTimer);
+    boundsTimer = setTimeout(notifyBounds, 200);
+  });
 
   noteWin.webContents.on('did-fail-load', () => {
     setTimeout(() => {
@@ -163,8 +201,8 @@ function broadcastChange() {
 }
 
 // IPC Handlers
-ipcMain.on('open-note-window', (event, noteId) => {
-  openNoteWindow(noteId);
+ipcMain.on('open-note-window', (event, noteId, options) => {
+  openNoteWindow(noteId, options);
 });
 
 ipcMain.on('close-note-window', (event, noteId) => {

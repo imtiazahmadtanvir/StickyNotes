@@ -65,11 +65,28 @@ export const WindowsHubView: React.FC<WindowsHubViewProps> = ({ onOpenNote }) =>
       });
     }
 
+    let unsubscribeBounds: (() => void) | undefined;
+    if (window.electronAPI?.onWindowBoundsUpdated) {
+      unsubscribeBounds = window.electronAPI.onWindowBoundsUpdated((data) => {
+        const cur = localDb.getNoteById(data.id);
+        if (cur && (cur.width !== data.width || cur.height !== data.height || cur.positionX !== data.positionX || cur.positionY !== data.positionY)) {
+          localDb.saveNote({
+            ...cur,
+            width: data.width,
+            height: data.height,
+            positionX: data.positionX,
+            positionY: data.positionY,
+          });
+        }
+      });
+    }
+
     return () => {
       unsubscribeAuth();
       syncManager.stopPeriodicSync();
       window.removeEventListener('stickynotes:updated', handleStorageUpdate);
       if (unsubscribeElectron) unsubscribeElectron();
+      if (unsubscribeBounds) unsubscribeBounds();
     };
   }, []);
 
@@ -116,14 +133,27 @@ export const WindowsHubView: React.FC<WindowsHubViewProps> = ({ onOpenNote }) =>
       .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
   }, [notes, searchQuery]);
 
-  // Open Note Window
+  // Open Note Window with remembered size & position
   const handleCardClick = (id: string) => {
+    const target = notes.find((n) => n.id === id) || localDb.getNoteById(id);
+    const opts = target
+      ? {
+          width: target.width || 320,
+          height: target.height || 340,
+          x: target.positionX,
+          y: target.positionY,
+          isPinned: target.isPinned,
+        }
+      : undefined;
+
     if (window.electronAPI?.openNoteWindow) {
-      window.electronAPI.openNoteWindow(id);
+      window.electronAPI.openNoteWindow(id, opts);
     } else if (onOpenNote) {
       onOpenNote(id);
     } else {
-      window.open(`/note?id=${encodeURIComponent(id)}`, `note_${id}`, 'width=340,height=360,menubar=no,toolbar=no,location=no');
+      const w = target?.width || 340;
+      const h = target?.height || 360;
+      window.open(`/note?id=${encodeURIComponent(id)}`, `note_${id}`, `width=${w},height=${h},menubar=no,toolbar=no,location=no`);
     }
   };
 

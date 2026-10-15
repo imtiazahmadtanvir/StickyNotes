@@ -69,17 +69,22 @@ export const NoteWindow: React.FC<NoteWindowProps> = ({
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Close menu on click outside or Escape
+  const sizeDropdownRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (!showColorPicker) return;
+    if (!showColorPicker && !showSizeDropdown) return;
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      if (menuRef.current && !menuRef.current.contains(target) && !target.closest('.note-btn')) {
+      if (showColorPicker && menuRef.current && !menuRef.current.contains(target) && !target.closest('.note-btn')) {
         setShowColorPicker(false);
+      }
+      if (showSizeDropdown && sizeDropdownRef.current && !sizeDropdownRef.current.contains(target)) {
+        setShowSizeDropdown(false);
       }
     };
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setShowColorPicker(false);
+        setShowSizeDropdown(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -88,7 +93,7 @@ export const NoteWindow: React.FC<NoteWindowProps> = ({
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [showColorPicker]);
+  }, [showColorPicker, showSizeDropdown]);
   const dragStartRef = useRef<{ x: number; y: number; posX: number; posY: number }>({
     x: 0,
     y: 0,
@@ -737,7 +742,7 @@ export const NoteWindow: React.FC<NoteWindowProps> = ({
           </button>
 
           {/* Font Size Presets Dropdown */}
-          <div className="size-dropdown-container">
+          <div className="size-dropdown-container" ref={sizeDropdownRef}>
             <button
               className="format-btn"
               title="Font Size Presets"
