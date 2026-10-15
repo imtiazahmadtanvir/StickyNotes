@@ -6,7 +6,7 @@
   "build": {
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build",
-    "devUrl": "http://localhost:3000",
+    "devUrl": "https://sticky-notes-rho-eight.vercel.app",
     "frontendDist": "../out"
   },
   "app": {
@@ -14,7 +14,7 @@
       {
         "title": "Sticky Notes",
         "label": "main",
-        "url": "/",
+        "url": "https://sticky-notes-rho-eight.vercel.app",
         "width": 1280,
         "height": 800,
         "minWidth": 400,

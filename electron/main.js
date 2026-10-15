@@ -7,9 +7,16 @@ let hubWindow = null;
 const noteWindows = new Map(); // noteId -> BrowserWindow
 let nextProcess = null;
 
-const DEV_URL = 'http://localhost:3000';
+const HOSTED_URL = 'https://sticky-notes-rho-eight.vercel.app';
+const APP_URL = process.env.APP_URL || HOSTED_URL;
 
 function ensureServerRunning(callback) {
+  // If using the live hosted cloud URL, we don't need any local server!
+  if (!APP_URL.startsWith('http://localhost')) {
+    callback();
+    return;
+  }
+
   function startNext() {
     if (nextProcess) return;
     console.log('Starting local Next.js background server on port 3000...');
@@ -20,7 +27,7 @@ function ensureServerRunning(callback) {
     });
 
     const checkInterval = setInterval(() => {
-      const probe = http.get(DEV_URL, (res) => {
+      const probe = http.get(APP_URL, (res) => {
         if (res.statusCode && res.statusCode < 400) {
           clearInterval(checkInterval);
           callback();
@@ -30,7 +37,7 @@ function ensureServerRunning(callback) {
     }, 500);
   }
 
-  const req = http.get(DEV_URL, (res) => {
+  const req = http.get(APP_URL, (res) => {
     if (res.statusCode && res.statusCode < 400) {
       callback();
     } else {
@@ -64,12 +71,12 @@ function createHubWindow() {
     },
   });
 
-  hubWindow.loadURL(`${DEV_URL}/hub`);
+  hubWindow.loadURL(`${APP_URL}/hub`);
 
   hubWindow.webContents.on('did-fail-load', () => {
     setTimeout(() => {
       if (hubWindow && !hubWindow.isDestroyed()) {
-        hubWindow.loadURL(`${DEV_URL}/hub`);
+        hubWindow.loadURL(`${APP_URL}/hub`);
       }
     }, 1000);
   });
@@ -118,12 +125,12 @@ function openNoteWindow(noteId, options = {}) {
 
   noteWindows.set(noteId, noteWin);
 
-  noteWin.loadURL(`${DEV_URL}/note?id=${encodeURIComponent(noteId)}`);
+  noteWin.loadURL(`${APP_URL}/note?id=${encodeURIComponent(noteId)}`);
 
   noteWin.webContents.on('did-fail-load', () => {
     setTimeout(() => {
       if (!noteWin.isDestroyed()) {
-        noteWin.loadURL(`${DEV_URL}/note?id=${encodeURIComponent(noteId)}`);
+        noteWin.loadURL(`${APP_URL}/note?id=${encodeURIComponent(noteId)}`);
       }
     }, 1000);
   });
