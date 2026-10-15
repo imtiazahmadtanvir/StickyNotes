@@ -37,7 +37,7 @@
       "output": "dist"
     },
     "win": {
-      "icon": "public/app-logo.png",
+      "icon": "public/icon.ico",
       "target": [
         "nsis",
         "portable"
