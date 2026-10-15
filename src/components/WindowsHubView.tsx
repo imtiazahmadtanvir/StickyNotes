@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   Plus,
   Minus,
@@ -199,6 +199,42 @@ export const WindowsHubView: React.FC<WindowsHubViewProps> = ({ onOpenNote }) =>
     loadNotes();
     setNoteToDelete(null);
   };
+
+  // Automatically show latest notes on app startup
+  const hasAutoOpenedRef = useRef(false);
+  useEffect(() => {
+    if (hasAutoOpenedRef.current) return;
+    hasAutoOpenedRef.current = true;
+
+    const timer = setTimeout(() => {
+      const all = localDb.getAllNotes().filter((n) => !n.deletedAt);
+      if (all.length === 0) {
+        handleNewNote();
+        return;
+      }
+
+      const openNotes = all.filter((n) => n.isOpen);
+      if (openNotes.length > 0) {
+        // Open any notes that were left open, ordered so newest note gains top focus
+        const sortedOpen = [...openNotes].sort(
+          (a, b) => new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime()
+        );
+        sortedOpen.forEach((n) => {
+          handleCardClick(n.id);
+        });
+      } else {
+        // If all notes were closed, automatically show the latest note
+        const sorted = [...all].sort(
+          (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+        );
+        if (sorted[0]) {
+          handleCardClick(sorted[0].id);
+        }
+      }
+    }, 120);
+
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
     <div className="windows-hub-container">

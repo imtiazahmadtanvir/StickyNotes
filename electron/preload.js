@@ -1,4 +1,8 @@
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webFrame } = require('electron');
+
+try {
+  webFrame.setVisualZoomLevelLimits(1, 1);
+} catch {}
 
 contextBridge.exposeInMainWorld('electronAPI', {
   isElectron: true,

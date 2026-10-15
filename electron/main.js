@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, screen } = require('electron');
+const { app, BrowserWindow, ipcMain, screen, Menu } = require('electron');
 const path = require('path');
 const http = require('http');
 const { spawn } = require('child_process');
@@ -75,6 +75,7 @@ function createHubWindow() {
     },
   });
 
+  hubWindow.webContents.setVisualZoomLevelLimits(1, 1);
   hubWindow.loadURL(`${APP_URL}/hub`);
 
   hubWindow.webContents.on('did-fail-load', () => {
@@ -137,6 +138,7 @@ function openNoteWindow(noteId, options = {}) {
 
   noteWindows.set(noteId, noteWin);
 
+  noteWin.webContents.setVisualZoomLevelLimits(1, 1);
   noteWin.loadURL(`${APP_URL}/note?id=${encodeURIComponent(noteId)}`);
 
   // Remember window size and position when user resizes or moves
@@ -253,6 +255,7 @@ ipcMain.on('close-window', (event) => {
 });
 
 app.whenReady().then(() => {
+  Menu.setApplicationMenu(null);
   ensureServerRunning(() => {
     createHubWindow();
   });

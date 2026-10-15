@@ -38,6 +38,9 @@ const FONT_STEPS = [12, 14, 16, 18, 22, 26, 32, 40, 48, 56];
 
 export const StandaloneNoteView: React.FC<StandaloneNoteViewProps> = ({ noteId }) => {
   const [note, setNote] = useState<Note | null>(null);
+  const noteRef = useRef<Note | null>(null);
+  noteRef.current = note;
+
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showSizeDropdown, setShowSizeDropdown] = useState(false);
 
@@ -261,14 +264,15 @@ export const StandaloneNoteView: React.FC<StandaloneNoteViewProps> = ({ noteId }
 
   // Auto-save logic
   const handleContentInput = useCallback(() => {
-    if (!editorRef.current || !note) return;
+    const curNote = noteRef.current || note;
+    if (!editorRef.current || !curNote) return;
     const newContent = editorRef.current.innerHTML;
     const textContent = editorRef.current.innerText.trim();
     const firstLine = textContent.split('\n')[0] || '';
     const smartTitle = firstLine.slice(0, 40);
 
     const updatedNote: Note = {
-      ...note,
+      ...curNote,
       title: smartTitle,
       content: newContent,
     };
@@ -302,12 +306,47 @@ export const StandaloneNoteView: React.FC<StandaloneNoteViewProps> = ({ noteId }
     const range = selection.getRangeAt(0);
     if (!editorRef.current.contains(range.commonAncestorContainer)) return;
 
-    // Detect current font size of selection
+    // Detect current font size of selection accurately
     let currentSize = 15;
-    let node: Node | null = range.commonAncestorContainer;
-    if (node.nodeType === Node.TEXT_NODE) node = node.parentElement;
-    if (node && node instanceof HTMLElement) {
-      const parsed = parseFloat(window.getComputedStyle(node).fontSize);
+    let targetSpan: HTMLElement | null = null;
+
+    let probe: Node | null = range.commonAncestorContainer;
+    if (probe.nodeType === Node.TEXT_NODE) probe = probe.parentElement;
+
+    if (probe && probe instanceof HTMLElement && probe !== editorRef.current) {
+      if (probe.tagName === 'SPAN' && probe.style.fontSize) {
+        targetSpan = probe;
+      } else {
+        const closest = probe.closest('span[style*="font-size"]');
+        if (closest && editorRef.current.contains(closest)) {
+          targetSpan = closest as HTMLElement;
+        }
+      }
+    }
+
+    if (!targetSpan && range.startContainer) {
+      const startEl =
+        range.startContainer.nodeType === Node.TEXT_NODE
+          ? range.startContainer.parentElement
+          : (range.startContainer as HTMLElement);
+      const span = startEl?.closest('span[style*="font-size"]');
+      if (span && editorRef.current.contains(span)) {
+        targetSpan = span as HTMLElement;
+      }
+    }
+
+    if (!targetSpan && range.commonAncestorContainer instanceof HTMLElement) {
+      const innerSpan = range.commonAncestorContainer.querySelector('span[style*="font-size"]');
+      if (innerSpan && range.intersectsNode(innerSpan)) {
+        targetSpan = innerSpan as HTMLElement;
+      }
+    }
+
+    if (targetSpan && targetSpan.style.fontSize) {
+      const parsed = parseFloat(targetSpan.style.fontSize);
+      if (!isNaN(parsed) && parsed > 0) currentSize = Math.round(parsed);
+    } else if (probe && probe instanceof HTMLElement) {
+      const parsed = parseFloat(window.getComputedStyle(probe).fontSize);
       if (!isNaN(parsed) && parsed > 0) currentSize = Math.round(parsed);
     }
 
@@ -324,21 +363,17 @@ export const StandaloneNoteView: React.FC<StandaloneNoteViewProps> = ({ noteId }
 
     if (!selection.isCollapsed) {
       let directlyUpdated = false;
-      let targetSpan: HTMLElement | null = null;
 
-      if (node && node instanceof HTMLElement && node !== editorRef.current) {
-        if (node.tagName === 'SPAN' && node.style.fontSize) {
-          targetSpan = node;
-        } else {
-          const closest = node.closest('span[style*="font-size"]');
-          if (closest && editorRef.current.contains(closest)) {
-            targetSpan = closest as HTMLElement;
-          }
-        }
-      }
-
-      if (targetSpan && targetSpan.innerText.trim() === range.toString().trim()) {
+      if (
+        targetSpan &&
+        (targetSpan.innerText.trim() === range.toString().trim() ||
+          targetSpan.contains(range.commonAncestorContainer))
+      ) {
         targetSpan.style.fontSize = `${targetSize}px`;
+        const newRange = document.createRange();
+        newRange.selectNodeContents(targetSpan);
+        selection.removeAllRanges();
+        selection.addRange(newRange);
         directlyUpdated = true;
       }
 
@@ -366,8 +401,12 @@ export const StandaloneNoteView: React.FC<StandaloneNoteViewProps> = ({ noteId }
           modifiedSpans.push(el as HTMLElement);
         });
 
-        // Restore and maintain selection across modified elements so user can click repeatedly!
-        if (modifiedSpans.length > 0) {
+        if (modifiedSpans.length === 1) {
+          const newRange = document.createRange();
+          newRange.selectNodeContents(modifiedSpans[0]);
+          selection.removeAllRanges();
+          selection.addRange(newRange);
+        } else if (modifiedSpans.length > 1) {
           const newRange = document.createRange();
           newRange.setStartBefore(modifiedSpans[0]);
           newRange.setEndAfter(modifiedSpans[modifiedSpans.length - 1]);
@@ -376,7 +415,6 @@ export const StandaloneNoteView: React.FC<StandaloneNoteViewProps> = ({ noteId }
         }
       }
     } else {
-      // If cursor is at a position without selection, insert a styled zero-width space
       document.execCommand('insertHTML', false, `<span style="font-size: ${targetSize}px">&#8203;</span>`);
     }
 
@@ -389,18 +427,56 @@ export const StandaloneNoteView: React.FC<StandaloneNoteViewProps> = ({ noteId }
     }, 40);
   };
 
-  // Keyboard shortcut listener (Ctrl+Shift+> and Ctrl+Shift+<)
+  const isIncreaseShortcut = (e: KeyboardEvent | React.KeyboardEvent) => {
+    if (!e.ctrlKey && !e.metaKey) return false;
+    return (
+      e.key === '+' ||
+      e.key === '=' ||
+      e.code === 'Equal' ||
+      e.code === 'NumpadAdd' ||
+      e.key === 'Add' ||
+      (e.shiftKey && (e.key === '>' || e.key === '.'))
+    );
+  };
+
+  const isDecreaseShortcut = (e: KeyboardEvent | React.KeyboardEvent) => {
+    if (!e.ctrlKey && !e.metaKey) return false;
+    return (
+      e.key === '-' ||
+      e.key === '_' ||
+      e.code === 'Minus' ||
+      e.code === 'NumpadSubtract' ||
+      e.key === 'Subtract' ||
+      (e.shiftKey && (e.key === '<' || e.key === ','))
+    );
+  };
+
+  // Keyboard shortcut listener on editor
   const handleEditorKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (e.ctrlKey || e.metaKey) {
-      if (e.shiftKey && (e.key === '>' || e.key === '.')) {
+    if (isIncreaseShortcut(e)) {
+      e.preventDefault();
+      applyFontSize('increase');
+    } else if (isDecreaseShortcut(e)) {
+      e.preventDefault();
+      applyFontSize('decrease');
+    }
+  };
+
+  // Window-level listener to intercept Ctrl + '+' / Ctrl + '-' and prevent browser window zoom
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if (isIncreaseShortcut(e)) {
         e.preventDefault();
         applyFontSize('increase');
-      } else if (e.shiftKey && (e.key === '<' || e.key === ',')) {
+      } else if (isDecreaseShortcut(e)) {
         e.preventDefault();
         applyFontSize('decrease');
       }
-    }
-  };
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, []);
 
   // Image insertion (Matching the image button in screenshot 1)
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -839,7 +915,7 @@ export const StandaloneNoteView: React.FC<StandaloneNoteViewProps> = ({ noteId }
         {/* Increase Text Size (A⁺) Button */}
         <button
           className="ms-tool-btn font-size-btn"
-          title="Increase Font Size (Ctrl+Shift+>)"
+          title="Increase Font Size (Ctrl + +)"
           onMouseDown={(e) => e.preventDefault()}
           onClick={() => applyFontSize('increase')}
         >
@@ -851,7 +927,7 @@ export const StandaloneNoteView: React.FC<StandaloneNoteViewProps> = ({ noteId }
         {/* Decrease Text Size (A⁻) Button */}
         <button
           className="ms-tool-btn font-size-btn"
-          title="Decrease Font Size (Ctrl+Shift+<)"
+          title="Decrease Font Size (Ctrl + -)"
           onMouseDown={(e) => e.preventDefault()}
           onClick={() => applyFontSize('decrease')}
         >
