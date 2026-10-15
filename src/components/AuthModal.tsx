@@ -31,7 +31,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onSuccess,
   initialMode = 'signin',
 }) => {
-  const [mode, setMode] = useState<'signin' | 'signup' | 'forgot'>(initialMode);
+  const [mode, setMode] = useState<'signin' | 'signup' | 'forgot'>(
+    initialMode === 'forgot' ? 'signin' : initialMode
+  );
   const [forgotStep, setForgotStep] = useState<1 | 2>(1); // 1 = request code, 2 = enter code & reset
   const [email, setEmail] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
@@ -367,29 +369,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <label style={{ margin: 0 }}>
                   {mode === 'forgot' ? 'New Password' : 'Password'}
                 </label>
-                {mode === 'signin' && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMode('forgot');
-                      setForgotStep(1);
-                      setError(null);
-                      setSuccessMsg(null);
-                    }}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: '#0078d4',
-                      fontSize: '11px',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      padding: 0,
-                      textDecoration: 'underline',
-                    }}
-                  >
-                    Forgot password?
-                  </button>
-                )}
+                {/* Forgot / Reset password option hidden for now */}
               </div>
               <div className="auth-input-wrapper">
                 <Lock size={15} className="input-icon" />
