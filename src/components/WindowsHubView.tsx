@@ -110,9 +110,15 @@ export const WindowsHubView: React.FC<WindowsHubViewProps> = ({ onOpenNote }) =>
   };
 
   const stripHtml = (html: string) => {
+    const formatted = html
+      .replace(/<li[^>]*>/gi, '• ')
+      .replace(/<\/li>/gi, '\n')
+      .replace(/<div[^>]*>/gi, '\n')
+      .replace(/<p[^>]*>/gi, '\n')
+      .replace(/<br\s*[\/]?>/gi, '\n');
     const tmp = document.createElement('DIV');
-    tmp.innerHTML = html;
-    return tmp.textContent || tmp.innerText || '';
+    tmp.innerHTML = formatted;
+    return (tmp.textContent || tmp.innerText || '').trim();
   };
 
   // Extract first image in note if present (for card thumbnail preview like Screenshot 2)
