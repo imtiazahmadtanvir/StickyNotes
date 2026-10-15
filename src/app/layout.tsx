@@ -2,8 +2,13 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Sticky Notes - Windows Local-First Clone',
-  description: 'Fast, offline-first Microsoft Sticky Notes clone built with Next.js and Tauri 2',
+  title: 'Sticky Notes',
+  description: 'Fast, offline-first Microsoft Sticky Notes clone with cloud sync',
+  icons: {
+    icon: '/app-logo.png',
+    shortcut: '/app-logo.png',
+    apple: '/app-logo.png',
+  },
 };
 
 export default function RootLayout({
@@ -21,7 +26,8 @@ export default function RootLayout({
           rel="stylesheet"
         />
         <link rel="manifest" href="/manifest.json" />
-        <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+        <link rel="icon" type="image/png" href="/app-logo.png" />
+        <link rel="apple-touch-icon" href="/app-logo.png" />
       </head>
       <body suppressHydrationWarning>{children}</body>
     </html>

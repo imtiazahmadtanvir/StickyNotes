@@ -56,12 +56,15 @@ function createHubWindow() {
     return;
   }
 
+  const appIconPath = path.join(__dirname, '../public/app-logo.png');
+
   hubWindow = new BrowserWindow({
     width: 340,
     height: 580,
     minWidth: 280,
     minHeight: 360,
     title: 'Sticky Notes',
+    icon: appIconPath,
     frame: false,
     autoHideMenuBar: true,
     backgroundColor: '#ffffff',
@@ -105,6 +108,7 @@ function openNoteWindow(noteId, options = {}) {
   const baseOffset = (noteWindows.size % 6) * 35;
   const defaultX = Math.round(display.workAreaSize.width / 2 - 160 + baseOffset);
   const defaultY = Math.round(display.workAreaSize.height / 2 - 170 + baseOffset);
+  const appIconPath = path.join(__dirname, '../public/app-logo.png');
 
   const noteWin = new BrowserWindow({
     width: options.width || 320,
@@ -114,6 +118,7 @@ function openNoteWindow(noteId, options = {}) {
     minWidth: 240,
     minHeight: 200,
     title: 'Sticky Note',
+    icon: appIconPath,
     frame: false,
     autoHideMenuBar: true,
     alwaysOnTop: !!options.isPinned,

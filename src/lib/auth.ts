@@ -148,15 +148,48 @@ class AuthService {
     }
   }
 
-  public async resetPassword(
+  public async sendPasswordResetCode(
+    email: string
+  ): Promise<{ success: boolean; error?: string; message?: string; verificationCode?: string }> {
+    try {
+      const res = await fetch('/api/auth/reset-password/send-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        return { success: false, error: data.error || 'Failed to send verification code.' };
+      }
+
+      return {
+        success: true,
+        message: data.message,
+        verificationCode: data.verificationCode,
+      };
+    } catch (err) {
+      return {
+        success: false,
+        error: (err as Error).message || 'Network error occurred.',
+      };
+    }
+  }
+
+  public async verifyAndResetPassword(
     email: string,
+    code: string,
     newPassword: string
   ): Promise<{ success: boolean; error?: string; user?: AuthUser }> {
     try {
       const res = await fetch('/api/auth/reset-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim(), newPassword }),
+        body: JSON.stringify({
+          email: email.trim(),
+          code: code.trim(),
+          newPassword,
+        }),
       });
 
       const data = await res.json();

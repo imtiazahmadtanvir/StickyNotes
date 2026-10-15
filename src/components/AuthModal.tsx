@@ -32,7 +32,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   initialMode = 'signin',
 }) => {
   const [mode, setMode] = useState<'signin' | 'signup' | 'forgot'>(initialMode);
+  const [forgotStep, setForgotStep] = useState<1 | 2>(1); // 1 = request code, 2 = enter code & reset
   const [email, setEmail] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [name, setName] = useState('');
@@ -43,6 +45,40 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   if (!isOpen) return null;
 
+  const handleSendVerificationCode = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setError(null);
+    setSuccessMsg(null);
+
+    if (!email.trim() || !email.includes('@')) {
+      setError('Please provide a valid registered email address.');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const res = await authService.sendPasswordResetCode(email.trim());
+      setLoading(false);
+
+      if (!res.success) {
+        setError(res.error || 'Failed to send verification code.');
+        return;
+      }
+
+      setForgotStep(2);
+      if (res.verificationCode) {
+        setVerificationCode(res.verificationCode);
+        setSuccessMsg(`Verification code generated: ${res.verificationCode}. Please enter your new password below.`);
+      } else {
+        setSuccessMsg('Verification code sent to your email! Please enter it below.');
+      }
+    } catch (err) {
+      setLoading(false);
+      setError((err as Error).message || 'Failed to request verification code.');
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -50,6 +86,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
     if (!email.trim() || !email.includes('@')) {
       setError('Please provide a valid email address.');
+      return;
+    }
+
+    if (mode === 'forgot' && forgotStep === 1) {
+      await handleSendVerificationCode();
+      return;
+    }
+
+    if (mode === 'forgot' && (!verificationCode || verificationCode.trim().length < 6)) {
+      setError('Please enter the 6-digit verification code.');
       return;
     }
 
@@ -95,15 +141,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           onClose();
         }, 600);
       } else {
-        // Forgot / Reset password mode
-        const res = await authService.resetPassword(email.trim(), password);
+        // Mode === 'forgot' Step 2: Verify code and update password
+        const res = await authService.verifyAndResetPassword(email.trim(), verificationCode.trim(), password);
         if (!res.success) {
-          setError(res.error || 'Failed to reset password.');
+          setError(res.error || 'Failed to reset password. Please check your verification code.');
           setLoading(false);
           return;
         }
 
-        setSuccessMsg('Password reset successfully! Signed in.');
+        setSuccessMsg('Password verified & reset successfully! Signed in.');
         setTimeout(() => {
           setLoading(false);
           if (res.user && onSuccess) onSuccess(res.user);
@@ -165,6 +211,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               className={`auth-tab-btn ${mode === 'signin' ? 'active' : ''}`}
               onClick={() => {
                 setMode('signin');
+                setForgotStep(1);
                 setError(null);
                 setSuccessMsg(null);
               }}
@@ -177,6 +224,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               className={`auth-tab-btn ${mode === 'signup' ? 'active' : ''}`}
               onClick={() => {
                 setMode('signup');
+                setForgotStep(1);
                 setError(null);
                 setSuccessMsg(null);
               }}
@@ -186,8 +234,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </button>
           </div>
         ) : (
-          <div style={{ fontSize: '12px', color: '#666', background: 'rgba(0,120,212,0.06)', padding: '8px 12px', borderRadius: '6px' }}>
-            Enter your registered email address and set your new password below.
+          <div style={{ fontSize: '12px', color: '#555', background: 'rgba(0,120,212,0.06)', padding: '10px 12px', borderRadius: '6px', border: '1px solid rgba(0,120,212,0.15)' }}>
+            {forgotStep === 1 ? (
+              <span>Step 1 of 2: Enter your registered email to receive a secure 6-digit verification code.</span>
+            ) : (
+              <span>Step 2 of 2: Enter the 6-digit code sent to your email and choose a new password.</span>
+            )}
           </div>
         )}
 
@@ -224,8 +276,31 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </div>
           )}
 
+          {/* Email field */}
           <div className="auth-input-group">
-            <label>Email Address</label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <label style={{ margin: 0 }}>Email Address</label>
+              {mode === 'forgot' && forgotStep === 2 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setForgotStep(1);
+                    setError(null);
+                  }}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#0078d4',
+                    fontSize: '11px',
+                    cursor: 'pointer',
+                    padding: 0,
+                    textDecoration: 'underline',
+                  }}
+                >
+                  Change email
+                </button>
+              )}
+            </div>
             <div className="auth-input-wrapper">
               <Mail size={15} className="input-icon" />
               <input
@@ -234,24 +309,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 placeholder="name@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                disabled={loading}
+                disabled={loading || (mode === 'forgot' && forgotStep === 2)}
               />
             </div>
           </div>
 
-          <div className="auth-input-group">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <label style={{ margin: 0 }}>
-                {mode === 'forgot' ? 'New Password' : 'Password'}
-              </label>
-              {mode === 'signin' && (
+          {/* Verification Code field (Only in forgot step 2) */}
+          {mode === 'forgot' && forgotStep === 2 && (
+            <div className="auth-input-group">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <label style={{ margin: 0, fontWeight: 700, color: '#0078d4' }}>
+                  6-Digit Verification Code
+                </label>
                 <button
                   type="button"
-                  onClick={() => {
-                    setMode('forgot');
-                    setError(null);
-                    setSuccessMsg(null);
-                  }}
+                  onClick={() => handleSendVerificationCode()}
+                  disabled={loading}
                   style={{
                     background: 'none',
                     border: 'none',
@@ -263,32 +336,85 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     textDecoration: 'underline',
                   }}
                 >
-                  Forgot password?
+                  Resend code
                 </button>
-              )}
+              </div>
+              <div className="auth-input-wrapper">
+                <KeyRound size={15} className="input-icon" style={{ color: '#0078d4' }} />
+                <input
+                  type="text"
+                  maxLength={6}
+                  required
+                  autoFocus
+                  placeholder="123456"
+                  value={verificationCode}
+                  onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  disabled={loading}
+                  style={{
+                    letterSpacing: '4px',
+                    fontWeight: 700,
+                    fontSize: '15px',
+                  }}
+                />
+              </div>
             </div>
-            <div className="auth-input-wrapper">
-              <Lock size={15} className="input-icon" />
-              <input
-                type={showPassword ? 'text' : 'password'}
-                required
-                placeholder={mode === 'forgot' ? 'Enter new password (min. 6 chars)' : 'At least 6 characters'}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={loading}
-              />
-              <button
-                type="button"
-                className="password-toggle-btn"
-                onClick={() => setShowPassword(!showPassword)}
-                tabIndex={-1}
-              >
-                {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
-              </button>
-            </div>
-          </div>
+          )}
 
-          {(mode === 'signup' || mode === 'forgot') && (
+          {/* Password field: shown in signin, signup, or forgot step 2 */}
+          {(mode !== 'forgot' || forgotStep === 2) && (
+            <div className="auth-input-group">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <label style={{ margin: 0 }}>
+                  {mode === 'forgot' ? 'New Password' : 'Password'}
+                </label>
+                {mode === 'signin' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode('forgot');
+                      setForgotStep(1);
+                      setError(null);
+                      setSuccessMsg(null);
+                    }}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#0078d4',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      padding: 0,
+                      textDecoration: 'underline',
+                    }}
+                  >
+                    Forgot password?
+                  </button>
+                )}
+              </div>
+              <div className="auth-input-wrapper">
+                <Lock size={15} className="input-icon" />
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  placeholder={mode === 'forgot' ? 'Enter new password (min. 6 chars)' : 'At least 6 characters'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={loading}
+                />
+                <button
+                  type="button"
+                  className="password-toggle-btn"
+                  onClick={() => setShowPassword(!showPassword)}
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Confirm Password field: shown in signup or forgot step 2 */}
+          {((mode === 'signup') || (mode === 'forgot' && forgotStep === 2)) && (
             <div className="auth-input-group">
               <label>
                 {mode === 'forgot' ? 'Confirm New Password' : 'Confirm Password'}
@@ -325,10 +451,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <UserPlus size={15} />
                 <span>Create Account & Sync</span>
               </>
-            ) : (
+            ) : forgotStep === 1 ? (
               <>
                 <KeyRound size={15} />
-                <span>Reset Password & Sign In</span>
+                <span>Send Verification Code</span>
+              </>
+            ) : (
+              <>
+                <CheckCircle2 size={15} />
+                <span>Verify Code & Reset Password</span>
               </>
             )}
           </button>
@@ -341,6 +472,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             className="auth-guest-btn"
             onClick={() => {
               setMode('signin');
+              setForgotStep(1);
               setError(null);
               setSuccessMsg(null);
             }}

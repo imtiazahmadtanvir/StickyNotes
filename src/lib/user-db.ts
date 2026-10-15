@@ -140,3 +140,59 @@ export async function updateUserPassword(email: string, newPasswordHash: string)
   );
   return count > 0;
 }
+
+export async function createPasswordResetToken(email: string): Promise<string> {
+  const normalized = email.trim().toLowerCase();
+  // Generate secure 6-digit random code
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+  const now = new Date();
+  const id = crypto.randomUUID();
+
+  try {
+    // Delete any old codes for this email
+    await prisma.$executeRawUnsafe(
+      'DELETE FROM "PasswordResetToken" WHERE LOWER(email) = $1',
+      normalized
+    );
+  } catch {}
+
+  await prisma.$executeRawUnsafe(
+    'INSERT INTO "PasswordResetToken" (id, email, code, "expiresAt", "createdAt") VALUES ($1, $2, $3, $4, $5)',
+    id,
+    normalized,
+    code,
+    expiresAt,
+    now
+  );
+
+  return code;
+}
+
+export async function verifyPasswordResetToken(email: string, code: string): Promise<boolean> {
+  const normalized = email.trim().toLowerCase();
+  const cleanCode = code.trim();
+  const now = new Date();
+
+  try {
+    const rows = await prisma.$queryRawUnsafe<Array<{ id: string }>>(
+      'SELECT id FROM "PasswordResetToken" WHERE LOWER(email) = $1 AND code = $2 AND "expiresAt" > $3 LIMIT 1',
+      normalized,
+      cleanCode,
+      now
+    );
+
+    if (rows && rows.length > 0) {
+      // Consume the code so it cannot be used again
+      await prisma.$executeRawUnsafe(
+        'DELETE FROM "PasswordResetToken" WHERE id = $1',
+        rows[0].id
+      );
+      return true;
+    }
+  } catch (e) {
+    console.error('Failed to verify reset token:', e);
+  }
+
+  return false;
+}

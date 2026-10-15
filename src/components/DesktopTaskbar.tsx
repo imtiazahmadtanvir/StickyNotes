@@ -101,7 +101,11 @@ export const DesktopTaskbar: React.FC<DesktopTaskbarProps> = ({
           title="Sticky Notes Hub (Manage all notes)"
           onClick={onToggleHub}
         >
-          <StickyNote size={20} style={{ color: '#38bdf8' }} />
+          <img
+            src="/app-logo.png"
+            alt="Sticky Notes"
+            style={{ width: '22px', height: '22px', objectFit: 'contain', borderRadius: '4px' }}
+          />
         </button>
 
         {/* Quick New Note Shortcut */}

@@ -50,3 +50,14 @@ model User {
   @@index([email])
 }
 
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  email     String
+  code      String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([email, code])
+}
+
+
