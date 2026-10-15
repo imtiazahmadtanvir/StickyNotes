@@ -178,11 +178,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div className="auth-icon-badge">
+            <div className="auth-icon-badge" style={{ padding: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               {mode === 'forgot' ? (
                 <KeyRound size={18} style={{ color: '#0078d4' }} />
               ) : (
-                <Cloud size={18} style={{ color: '#0078d4' }} />
+                <img
+                  src="/app-logo.png"
+                  alt="Sticky Notes"
+                  style={{ width: '22px', height: '22px', objectFit: 'contain', borderRadius: '4px' }}
+                />
               )}
             </div>
             <div>

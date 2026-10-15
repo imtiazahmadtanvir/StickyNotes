@@ -337,9 +337,21 @@ export const WindowsHubView: React.FC<WindowsHubViewProps> = ({ onOpenNote }) =>
         </div>
       </div>
 
-      {/* Main Title (Matching Screenshot 2) */}
-      <div className="hub-title-section">
-        <h1 className="hub-main-title">Sticky Notes</h1>
+      {/* Main Title (Matching Screenshot 2 & App Logo) */}
+      <div className="hub-title-section" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <img
+          src="/app-logo.png"
+          alt="Sticky Notes"
+          style={{
+            width: '28px',
+            height: '28px',
+            objectFit: 'contain',
+            borderRadius: '7px',
+            boxShadow: '0 2px 6px rgba(0, 0, 0, 0.12)',
+            flexShrink: 0,
+          }}
+        />
+        <h1 className="hub-main-title" style={{ margin: 0 }}>Sticky Notes</h1>
       </div>
 
       {/* Search Input Box */}

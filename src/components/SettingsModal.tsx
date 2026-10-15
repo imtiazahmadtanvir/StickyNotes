@@ -80,7 +80,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Database size={18} style={{ color: '#0284c7' }} />
+            <img
+              src="/app-logo.png"
+              alt="Sticky Notes"
+              style={{ width: '20px', height: '20px', objectFit: 'contain', borderRadius: '4px' }}
+            />
             <h3 style={{ fontSize: '16px', fontWeight: 600 }}>Sticky Notes Settings</h3>
           </div>
           <button className="note-btn close-btn" onClick={onClose}>
