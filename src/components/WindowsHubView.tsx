@@ -3,6 +3,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import {
   Plus,
+  Minus,
   X,
   Settings,
   Search,
@@ -18,20 +19,6 @@ import { authService, AuthUser } from '@/lib/auth';
 import { SettingsModal } from './SettingsModal';
 import { AuthModal } from './AuthModal';
 
-declare global {
-  interface Window {
-    electronAPI?: {
-      isElectron: boolean;
-      openNoteWindow: (id: string) => void;
-      closeNoteWindow: (id: string) => void;
-      openHubWindow?: () => void;
-      setAlwaysOnTop: (id: string, isPinned: boolean) => void;
-      createNewNote: () => void;
-      broadcastNoteChange: () => void;
-      onNotesUpdated: (callback: () => void) => () => void;
-    };
-  }
-}
 
 interface WindowsHubViewProps {
   onOpenNote?: (id: string) => void;
@@ -252,10 +239,25 @@ export const WindowsHubView: React.FC<WindowsHubViewProps> = ({ onOpenNote }) =>
             <Settings size={18} strokeWidth={1.8} />
           </button>
           <button
+            className="hub-icon-btn"
+            title="Minimize"
+            onClick={() => {
+              if (window.electronAPI?.minimizeWindow) {
+                window.electronAPI.minimizeWindow();
+              }
+            }}
+          >
+            <Minus size={16} strokeWidth={1.8} />
+          </button>
+          <button
             className="hub-icon-btn close-btn"
             title="Close"
             onClick={() => {
-              if (typeof window !== 'undefined') window.close();
+              if (window.electronAPI?.closeWindow) {
+                window.electronAPI.closeWindow();
+              } else if (typeof window !== 'undefined') {
+                window.close();
+              }
             }}
           >
             <X size={18} strokeWidth={1.8} />

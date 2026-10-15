@@ -4,6 +4,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   isElectron: true,
   openNoteWindow: (id) => ipcRenderer.send('open-note-window', id),
   closeNoteWindow: (id) => ipcRenderer.send('close-note-window', id),
+  minimizeWindow: () => ipcRenderer.send('minimize-window'),
+  closeWindow: () => ipcRenderer.send('close-window'),
   setAlwaysOnTop: (id, isPinned) => ipcRenderer.send('set-always-on-top', { id, isPinned }),
   createNewNote: () => ipcRenderer.send('create-new-note'),
   openHubWindow: () => ipcRenderer.send('open-hub-window'),

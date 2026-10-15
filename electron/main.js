@@ -62,6 +62,7 @@ function createHubWindow() {
     minWidth: 280,
     minHeight: 360,
     title: 'Sticky Notes',
+    frame: false,
     autoHideMenuBar: true,
     backgroundColor: '#ffffff',
     webPreferences: {
@@ -113,6 +114,7 @@ function openNoteWindow(noteId, options = {}) {
     minWidth: 240,
     minHeight: 200,
     title: 'Sticky Note',
+    frame: false,
     autoHideMenuBar: true,
     alwaysOnTop: !!options.isPinned,
     backgroundColor: '#fff9c4',
@@ -191,6 +193,20 @@ ipcMain.on('create-new-note', () => {
 
 ipcMain.on('open-hub-window', () => {
   createHubWindow();
+});
+
+ipcMain.on('minimize-window', (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (win && !win.isDestroyed()) {
+    win.minimize();
+  }
+});
+
+ipcMain.on('close-window', (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (win && !win.isDestroyed()) {
+    win.close();
+  }
 });
 
 app.whenReady().then(() => {

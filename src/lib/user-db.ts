@@ -115,3 +115,28 @@ export async function migrateUserNotes(newUserId: string, noteIds?: string[]): P
     return 0;
   }
 }
+
+export async function updateUserPassword(email: string, newPasswordHash: string): Promise<boolean> {
+  const normalized = email.trim().toLowerCase();
+  const now = new Date();
+  try {
+    if ((prisma as unknown as { user?: { update: (args: unknown) => Promise<DbUser> } }).user?.update) {
+      await (prisma as unknown as { user: { update: (args: unknown) => Promise<DbUser> } }).user.update({
+        where: { email: normalized },
+        data: {
+          passwordHash: newPasswordHash,
+          updatedAt: now,
+        },
+      });
+      return true;
+    }
+  } catch {}
+
+  const count = await prisma.$executeRawUnsafe(
+    'UPDATE "User" SET "passwordHash" = $1, "updatedAt" = $2 WHERE LOWER(email) = $3',
+    newPasswordHash,
+    now,
+    normalized
+  );
+  return count > 0;
+}

@@ -148,6 +148,37 @@ class AuthService {
     }
   }
 
+  public async resetPassword(
+    email: string,
+    newPassword: string
+  ): Promise<{ success: boolean; error?: string; user?: AuthUser }> {
+    try {
+      const res = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim(), newPassword }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        return { success: false, error: data.error || 'Failed to reset password.' };
+      }
+
+      const user: AuthUser = data.user;
+      if (user) {
+        this.setCurrentUser(user);
+        await this.migrateLocalNotes(user.id);
+      }
+
+      return { success: true, user };
+    } catch (err) {
+      return {
+        success: false,
+        error: (err as Error).message || 'Network error occurred.',
+      };
+    }
+  }
+
   public logout(): void {
     this.currentUser = null;
     if (typeof window !== 'undefined') {
